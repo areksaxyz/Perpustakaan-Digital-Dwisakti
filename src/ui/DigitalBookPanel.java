@@ -32,8 +32,9 @@ public class DigitalBookPanel extends JPanel {
     private JTextField subjectField;
     private CardLayout cardLayout;
     private JPanel cardPanel;
+    private JButton addButton, updateButton, deleteButton;
 
-    public DigitalBookPanel(DataStorage dataStorage, CardLayout cardLayout, JPanel cardPanel) {
+    public DigitalBookPanel(DataStorage dataStorage, CardLayout cardLayout, JPanel cardPanel, String currentUsername) {
         this.dataStorage = dataStorage;
         this.cardLayout = cardLayout;
         this.cardPanel = cardPanel;
@@ -106,23 +107,9 @@ public class DigitalBookPanel extends JPanel {
         subjectField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         subjectField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true));
 
-        JButton addButton = new JButton("Tambah Buku");
-        addButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        addButton.setBackground(new Color(33, 150, 243));
-        addButton.setForeground(Color.WHITE);
-        addButton.setFocusPainted(false);
-        addButton.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
-        addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                addButton.setBackground(new Color(66, 165, 245));
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                addButton.setBackground(new Color(33, 150, 243));
-            }
-        });
+        addButton = createStyledButton("Tambah Buku", new Color(33, 150, 243));
+        updateButton = createStyledButton("Update", new Color(33, 150, 243));
+        deleteButton = createStyledButton("Hapus", new Color(255, 82, 82));
 
         // Posisi komponen dalam form (dengan ID)
         gbc.gridx = 0;
@@ -161,11 +148,16 @@ public class DigitalBookPanel extends JPanel {
         gbc.gridx = 1;
         formPanel.add(subjectField, gbc);
 
-        gbc.gridx = 1;
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        buttonPanel.setOpaque(false);
+        buttonPanel.add(addButton);
+        buttonPanel.add(updateButton);
+        buttonPanel.add(deleteButton);
+
+        gbc.gridx = 0;
         gbc.gridy = 6;
-        gbc.fill = GridBagConstraints.NONE;
-        gbc.anchor = GridBagConstraints.EAST;
-        formPanel.add(addButton, gbc);
+        gbc.gridwidth = 2;
+        formPanel.add(buttonPanel, gbc);
 
         // Panel tengah dengan form dan tabel
         JPanel centerPanel = new JPanel(new BorderLayout());
@@ -236,11 +228,9 @@ public class DigitalBookPanel extends JPanel {
                 button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
                 button.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 button.addActionListener(e -> {
-                    // Hentikan pengeditan sebelum mengakses data
                     if (table.getCellEditor() != null) {
                         table.getCellEditor().stopCellEditing();
                     }
-                    // Pastikan baris masih valid setelah penghentian pengeditan
                     if (row < 0 || row >= tableModel.getRowCount()) return;
                     String bookId = (String) table.getValueAt(row, 1);
                     Book book = dataStorage.getBooks().stream()
@@ -324,15 +314,12 @@ public class DigitalBookPanel extends JPanel {
                 button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
                 button.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 button.addActionListener(e -> {
-                    // Hentikan pengeditan sebelum mengakses data
                     if (table.getCellEditor() != null) {
                         table.getCellEditor().stopCellEditing();
                     }
-                    // Pastikan baris masih valid setelah penghentian pengeditan
                     if (row < 0 || row >= tableModel.getRowCount()) return;
                     String bookId = (String) table.getValueAt(row, 1);
 
-                    // Dialog untuk memasukkan password
                     JPasswordField passwordField = new JPasswordField();
                     int option = JOptionPane.showConfirmDialog(null, 
                             new Object[]{"Masukkan Password:", passwordField}, 
@@ -392,8 +379,8 @@ public class DigitalBookPanel extends JPanel {
             }
 
             try {
-                int publicationYear = Integer.parseInt(year);
-                Book book = new Book(id, title, author, publicationYear, "Digital", url, subject);
+                int publicationYear = Integer.parseInt(year); // Konversi String ke int
+                Book book = new Book(id, title, author, publicationYear, "Digital", url, subject); // Gunakan konstruktor dengan int year
                 dataStorage.getBooks().add(book);
                 dataStorage.saveBooks();
                 updateTable();
@@ -401,6 +388,82 @@ public class DigitalBookPanel extends JPanel {
                 JOptionPane.showMessageDialog(this, "Buku digital berhasil ditambahkan dengan ID: " + id, "Sukses", JOptionPane.INFORMATION_MESSAGE);
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(this, "Tahun harus berupa angka!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // Aksi tombol Update Buku
+        updateButton.addActionListener(e -> {
+            String id = idField.getText().trim();
+            if (id.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Pilih buku untuk diupdate!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Book bookToUpdate = dataStorage.getBooks().stream()
+                    .filter(b -> b.getId().equals(id) && "Digital".equals(b.getType()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (bookToUpdate == null) {
+                JOptionPane.showMessageDialog(this, "Buku digital dengan ID tersebut tidak ditemukan!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String title = titleField.getText().trim();
+            String author = authorField.getText().trim();
+            String year = yearField.getText().trim();
+            String url = urlField.getText().trim();
+            String subject = subjectField.getText().trim();
+
+            if (title.isEmpty() || author.isEmpty() || year.isEmpty() || url.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Semua field harus diisi!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            try {
+                int publicationYear = Integer.parseInt(year); // Konversi String ke int
+                bookToUpdate.setTitle(title);
+                bookToUpdate.setAuthor(author);
+                bookToUpdate.setPublicationYear(String.valueOf(publicationYear)); // Konversi kembali ke String
+                bookToUpdate.setUrl(url);
+                bookToUpdate.setSubject(subject);
+                dataStorage.saveBooks();
+                updateTable();
+                clearFields();
+                JOptionPane.showMessageDialog(this, "Buku digital berhasil diperbarui!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Tahun harus berupa angka!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // Aksi tombol Delete Buku
+        deleteButton.addActionListener(e -> {
+            String id = idField.getText().trim();
+            if (id.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Pilih buku untuk dihapus!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int confirm = JOptionPane.showConfirmDialog(this, "Apakah Anda yakin ingin menghapus buku ini?", "Konfirmasi Hapus", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                Book bookToDelete = dataStorage.getBooks().stream()
+                        .filter(b -> b.getId().equals(id) && "Digital".equals(b.getType()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (bookToDelete != null) {
+                    if (bookToDelete.isBorrowed()) {
+                        JOptionPane.showMessageDialog(this, "Buku sedang dipinjam dan tidak dapat dihapus.", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        dataStorage.getBooks().remove(bookToDelete);
+                        dataStorage.saveBooks();
+                        updateTable();
+                        clearFields();
+                        JOptionPane.showMessageDialog(this, "Buku digital berhasil dihapus!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, "Buku digital dengan ID tersebut tidak ditemukan!", "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
     }
@@ -439,6 +502,27 @@ public class DigitalBookPanel extends JPanel {
         yearField.setText("");
         urlField.setText("");
         subjectField.setText("");
+    }
+
+    private JButton createStyledButton(String text, Color bgColor) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        button.setBackground(bgColor);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setBackground(bgColor.darker());
+            }
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(bgColor);
+            }
+        });
+        return button;
     }
 
     // Kelas internal untuk menampilkan PDF dengan gambar halaman nyata
@@ -593,20 +677,20 @@ public class DigitalBookPanel extends JPanel {
             pageLabel.setHorizontalAlignment(SwingConstants.CENTER);
             scrollPane = new JScrollPane(pageLabel);
             scrollPane.setBackground(Color.WHITE);
-            scrollPane.getVerticalScrollBar().setUnitIncrement(16); // Muluskan scroll
-            scrollPane.getHorizontalScrollBar().setUnitIncrement(16); // Muluskan scroll
+            scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
             add(scrollPane, BorderLayout.CENTER);
 
             // Render halaman pertama langsung
             renderPage(currentPage);
-            setPreferredSize(new Dimension(800, 600)); // Ukuran awal jendela
+            setPreferredSize(new Dimension(800, 600));
             pack();
             setLocationRelativeTo(null);
         }
 
         private void renderPage(int page) {
             try {
-                BufferedImage image = renderer.renderImage(page - 1, 1.5f); // DPI 1.5 untuk ukuran lebih besar
+                BufferedImage image = renderer.renderImage(page - 1, 1.5f);
                 pageCache.put(page - 1, image);
                 updateContent();
             } catch (IOException e) {
@@ -633,7 +717,6 @@ public class DigitalBookPanel extends JPanel {
             pageLabel.setIcon(new ImageIcon(scaledImage));
             pageLabel.setText(null);
             ((JLabel) ((JPanel) getContentPane().getComponent(0)).getComponent(0)).setText("Halaman " + currentPage + " / " + totalPages);
-            // Reset posisi scroll ke atas
             scrollPane.getViewport().setViewPosition(new Point(0, 0));
             revalidate();
             repaint();

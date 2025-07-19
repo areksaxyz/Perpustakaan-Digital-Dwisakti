@@ -14,10 +14,12 @@ public class ReadHistory {
         this.readDate = new Date();
     }
 
+    // Getters
     public String getReadId() { return readId; }
     public Book getBook() { return book; }
     public Date getReadDate() { return readDate; }
     public String getFormattedReadDate() {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(readDate);
     }
+    // Setters (jika diperlukan, saat ini tidak ada)
 }

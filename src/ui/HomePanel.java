@@ -106,7 +106,7 @@ public class HomePanel extends JPanel {
         JPanel footerPanel = new JPanel();
         footerPanel.setBackground(new Color(48, 79, 254));
         footerPanel.setPreferredSize(new Dimension(getWidth(), 40));
-        JLabel footerLabel = new JLabel("© 2025 Perpustakaan Digital - All Rights Reserved");
+        JLabel footerLabel = new JLabel("© 2025 Perpustakaan DwiSakti - All Rights Reserved");
         footerLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         footerLabel.setForeground(Color.WHITE);
         footerPanel.add(footerLabel);

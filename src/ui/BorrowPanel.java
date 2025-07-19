@@ -2,19 +2,18 @@ package ui;
 
 import model.Book;
 import model.Loan;
+import model.User;
 import storage.DataStorage;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.UUID;
+import java.util.EventObject;
 
 public class BorrowPanel extends JPanel {
     private DataStorage dataStorage;
@@ -25,11 +24,13 @@ public class BorrowPanel extends JPanel {
     private JTextField classField;
     private JTextField nimField;
     private boolean showUnreturnedOnly = true;
-    private LibraryUI libraryUI; // Referensi ke LibraryUI
+    private LibraryUI libraryUI;
+    private String currentUsername;
 
-    public BorrowPanel(DataStorage dataStorage, Book selectedBook, LibraryUI libraryUI) {
+    public BorrowPanel(DataStorage dataStorage, Book selectedBook, LibraryUI libraryUI, String currentUsername) {
         this.dataStorage = dataStorage;
         this.libraryUI = libraryUI;
+        this.currentUsername = currentUsername;
         setLayout(new BorderLayout());
         setBackground(new Color(245, 247, 250));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -70,7 +71,6 @@ public class BorrowPanel extends JPanel {
                 bookComboBox.addItem(book);
             }
         }
-        // Pre-select buku jika selectedBook tidak null dan tersedia
         if (selectedBook != null && !selectedBook.isBorrowed()) {
             bookComboBox.setSelectedItem(selectedBook);
         }
@@ -92,27 +92,28 @@ public class BorrowPanel extends JPanel {
         borrowerNameField = new JTextField(15);
         borrowerNameField.setFont(new Font("Roboto", Font.PLAIN, 14));
         borrowerNameField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true));
+        borrowerNameField.setEditable(false);
 
         JLabel classLabel = new JLabel("Kelas:");
         classLabel.setFont(new Font("Roboto", Font.PLAIN, 14));
         classField = new JTextField(15);
         classField.setFont(new Font("Roboto", Font.PLAIN, 14));
         classField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true));
+        classField.setEditable(false);
 
         JLabel nimLabel = new JLabel("NIM:");
         nimLabel.setFont(new Font("Roboto", Font.PLAIN, 14));
         nimField = new JTextField(15);
         nimField.setFont(new Font("Roboto", Font.PLAIN, 14));
         nimField.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1, true));
-        nimField.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyTyped(KeyEvent e) {
-                char c = e.getKeyChar();
-                if (!Character.isDigit(c)) {
-                    e.consume(); // Hanya izinkan angka
-                }
-            }
-        });
+        nimField.setEditable(false);
+
+        User currentUser = dataStorage.getUserByUsername(currentUsername);
+        if (currentUser != null) {
+            borrowerNameField.setText(currentUser.getFullName());
+            classField.setText(currentUser.getClassName());
+            nimField.setText(currentUser.getNim());
+        }
 
         JButton borrowButton = new JButton("Pinjam Buku");
         borrowButton.setFont(new Font("Roboto", Font.BOLD, 14));
@@ -132,87 +133,49 @@ public class BorrowPanel extends JPanel {
             }
         });
         borrowButton.addActionListener(e -> {
-            System.out.println("Tombol Pinjam Buku diklik"); // Debugging
-            // Validasi input
             if (bookComboBox.getSelectedItem() == null) {
                 JOptionPane.showMessageDialog(BorrowPanel.this, "Pilih buku terlebih dahulu!", "Peringatan", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            if (borrowerNameField.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(BorrowPanel.this, "Nama peminjam tidak boleh kosong!", "Peringatan", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            if (classField.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(BorrowPanel.this, "Kelas tidak boleh kosong!", "Peringatan", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            if (nimField.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(BorrowPanel.this, "NIM tidak boleh kosong!", "Peringatan", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
 
-            // Ambil data dari form
             Book bookToBorrow = (Book) bookComboBox.getSelectedItem();
             String borrowerName = borrowerNameField.getText().trim();
             String className = classField.getText().trim();
             String nim = nimField.getText().trim();
 
-            // Cek apakah buku sudah dipinjam
             if (bookToBorrow.isBorrowed()) {
                 JOptionPane.showMessageDialog(BorrowPanel.this, "Buku ini sudah dipinjam!", "Peringatan", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
-            // Buat ID peminjaman (format: BOOKID-DDMMYY-RANDOM)
             String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("ddMMyy"));
             String loanId = bookToBorrow.getId() + "-" + dateStr + "-" + UUID.randomUUID().toString().substring(0, 8);
 
-            // Buat objek Loan
-            Loan loan = new Loan(loanId, bookToBorrow, borrowerName, className, nim);
-            bookToBorrow.setBorrowed(true); // Tandai buku sebagai dipinjam
+            LocalDate loanDate = LocalDate.now();
+            Loan loan = new Loan(loanId, bookToBorrow, borrowerName, className, nim, loanDate, null, false);
+            bookToBorrow.setBorrowed(true);
 
-            // Simpan peminjaman ke DataStorage
             dataStorage.getLoans().add(loan);
             dataStorage.saveLoan(loan);
-            dataStorage.saveBooks(); // Perbarui status buku di database
+            dataStorage.saveBooks();
 
-            // Bersihkan form dan perbarui tabel
             clearFields();
             updateTable();
 
             JOptionPane.showMessageDialog(BorrowPanel.this, "Buku berhasil dipinjam!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
-        });
-
-        JButton filterButton = new JButton("Tampilkan Semua");
-        filterButton.setFont(new Font("Roboto", Font.BOLD, 14));
-        filterButton.setBackground(new Color(255, 152, 0));
-        filterButton.setForeground(Color.WHITE);
-        filterButton.setFocusPainted(false);
-        filterButton.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
-        filterButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        filterButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                filterButton.setBackground(new Color(255, 167, 38));
-            }
-            @Override
-            public void mouseExited(MouseEvent e) {
-                filterButton.setBackground(new Color(255, 152, 0));
+            if (libraryUI != null) {
+                libraryUI.updateAllPanels();
             }
         });
-        filterButton.addActionListener(e -> {
-            showUnreturnedOnly = !showUnreturnedOnly;
-            filterButton.setText(showUnreturnedOnly ? "Tampilkan Semua" : "Tampilkan Belum Dikembalikan");
-            updateTable();
-        });
 
-        JButton deleteButton = new JButton("Hapus");
+        JButton deleteButton = new JButton("Hapus Peminjaman");
         deleteButton.setFont(new Font("Roboto", Font.BOLD, 14));
         deleteButton.setBackground(new Color(244, 67, 54));
         deleteButton.setForeground(Color.WHITE);
         deleteButton.setFocusPainted(false);
         deleteButton.setBorder(BorderFactory.createEmptyBorder(8, 15, 8, 15));
         deleteButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        deleteButton.setEnabled("admin".equals(dataStorage.getUserRole(currentUsername)));
         deleteButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -225,45 +188,61 @@ public class BorrowPanel extends JPanel {
         });
         deleteButton.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
-            if (selectedRow != -1) {
-                String loanId = (String) table.getValueAt(selectedRow, 1);
+            if (selectedRow >= 0) {
+                String loanId = (String) tableModel.getValueAt(selectedRow, 1);
                 Loan loan = dataStorage.getLoans().stream()
                         .filter(l -> l.getLoanId().equals(loanId))
                         .findFirst()
                         .orElse(null);
                 if (loan != null) {
-                    JPasswordField passwordField = new JPasswordField();
-                    int option = JOptionPane.showConfirmDialog(
-                            BorrowPanel.this,
-                            passwordField,
-                            "Masukkan Password untuk Menghapus",
-                            JOptionPane.OK_CANCEL_OPTION,
-                            JOptionPane.PLAIN_MESSAGE
-                    );
-                    if (option == JOptionPane.OK_OPTION) {
-                        String password = new String(passwordField.getPassword());
-                        if ("admin1234".equals(password)) {
-                            loan.getBook().setBorrowed(false);
-                            dataStorage.getLoans().remove(loan);
-                            deleteLoanFromDatabase(loanId);
+                    if (!loan.isReturned()) {
+                         int confirm = JOptionPane.showConfirmDialog(BorrowPanel.this, "Peminjaman ini belum dikembalikan. Yakin ingin menghapus? Status buku akan diubah menjadi Tersedia.", "Konfirmasi Hapus", JOptionPane.YES_NO_OPTION);
+                         if (confirm == JOptionPane.YES_OPTION) {
+                             loan.getBook().setBorrowed(false);
+                             dataStorage.saveBooks();
+                             boolean deleted = dataStorage.deleteLoan(loanId);
+                             if (deleted) {
+                                 JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman berhasil dihapus! Status buku diperbarui.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                             } else {
+                                 JOptionPane.showMessageDialog(BorrowPanel.this, "Gagal menghapus peminjaman dari database.", "Error", JOptionPane.ERROR_MESSAGE);
+                                 loan.getBook().setBorrowed(true);
+                                 dataStorage.saveBooks();
+                             }
+                             updateTable();
+                             if (libraryUI != null) libraryUI.updateAllPanels();
+                         }
+                    } else { // Loan is already returned
+                        int confirm = JOptionPane.showConfirmDialog(BorrowPanel.this, "Peminjaman ini sudah dikembalikan. Apakah Anda yakin ingin menghapusnya dari riwayat?", "Konfirmasi Hapus Riwayat", JOptionPane.YES_NO_OPTION);
+                        if (confirm == JOptionPane.YES_OPTION) {
+                            boolean deleted = dataStorage.deleteLoan(loanId);
+                            if (deleted) {
+                                JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman riwayat berhasil dihapus!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                            } else {
+                                JOptionPane.showMessageDialog(BorrowPanel.this, "Gagal menghapus peminjaman dari database.", "Error", JOptionPane.ERROR_MESSAGE);
+                            }
                             updateTable();
-                            JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman berhasil dihapus!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
-                        } else {
-                            JOptionPane.showMessageDialog(BorrowPanel.this, "Password salah!", "Error", JOptionPane.ERROR_MESSAGE);
+                            if (libraryUI != null) libraryUI.updateAllPanels();
                         }
                     }
+                } else {
+                    JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman tidak ditemukan! Mungkin data tidak sinkron.", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             } else {
-                JOptionPane.showMessageDialog(BorrowPanel.this, "Pilih peminjaman terlebih dahulu!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(BorrowPanel.this, "Pilih peminjaman untuk dihapus!", "Peringatan", JOptionPane.WARNING_MESSAGE);
             }
         });
 
-        // Panel untuk tombol agar lebih rapi
+        // Konfigurasi tombol berdasarkan role
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
         buttonPanel.setBackground(new Color(245, 247, 250));
-        buttonPanel.add(borrowButton);
-        buttonPanel.add(deleteButton);
-        buttonPanel.add(filterButton);
+        String userRole = dataStorage.getUserRole(currentUsername);
+        if ("user".equals(userRole)) {
+            buttonPanel.add(borrowButton);
+            deleteButton.setVisible(false);
+        } else if ("admin".equals(userRole)) {
+            buttonPanel.add(deleteButton);
+            borrowButton.setVisible(false);
+        }
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -299,11 +278,22 @@ public class BorrowPanel extends JPanel {
         centerPanel.setBackground(new Color(245, 247, 250));
         centerPanel.add(formPanel, BorderLayout.NORTH);
 
-        String[] columns = {"No", "ID Peminjaman", "Judul Buku", "Tipe Buku", "Peminjam", "Kelas", "NIM", "Tanggal Pinjam", "Status", "Aksi 1", "Aksi 2"};
+        // Tentukan kolom berdasarkan peran
+        String[] columns;
+        if ("admin".equals(dataStorage.getUserRole(currentUsername))) {
+            columns = new String[]{"No", "ID Peminjaman", "Judul Buku", "Tipe Buku", "Nama Peminjam", "Kelas", "NIM", "Tanggal Pinjam", "Tanggal Harus Dikembalikan", "Status", "Aksi 1", "Aksi 2"};
+        } else {
+            columns = new String[]{"No", "ID Peminjaman", "Nama Buku", "Tipe Buku", "Tanggal Peminjam", "Tanggal Harus Dikembalikan", "Status"};
+        }
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 9 || column == 10;
+                if ("admin".equals(dataStorage.getUserRole(currentUsername))) {
+                    int colCount = tableModel.getColumnCount();
+                    return (column == colCount - 2 || column == colCount - 1) && // Aksi 1 atau Aksi 2
+                           tableModel.getRowCount() > 0 && row >= 0 && row < tableModel.getRowCount();
+                }
+                return false;
             }
         };
         table = new JTable(tableModel);
@@ -312,7 +302,7 @@ public class BorrowPanel extends JPanel {
         table.setFont(new Font("Roboto", Font.PLAIN, 14));
         table.setSelectionBackground(new Color(255, 204, 128));
         table.setSelectionForeground(Color.BLACK);
-        table.setGridColor(new Color(220, 220, 220));
+        table.setGridColor(new Color(220, 220, 200));
         table.setShowGrid(true);
 
         table.addMouseMotionListener(new MouseAdapter() {
@@ -333,194 +323,132 @@ public class BorrowPanel extends JPanel {
         tableHeader.setForeground(Color.WHITE);
         tableHeader.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
 
-        table.getColumnModel().getColumn(9).setCellRenderer((table, value, isSelected, hasFocus, row, column) -> {
-            if (row >= table.getRowCount()) { // Cegah akses baris yang sudah dihapus
-                return new JLabel("");
-            }
-            JButton button;
-            String status = (String) table.getValueAt(row, 8);
-            if ("Belum Dikembalikan".equals(status)) {
-                button = new JButton("Kembalikan");
-            } else {
-                button = new JButton("Detail");
-            }
-            button.setFont(new Font("Roboto", Font.BOLD, 12));
-            button.setBackground(new Color(255, 152, 0));
-            button.setForeground(Color.WHITE);
-            button.setFocusPainted(false);
-            button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-            button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseEntered(MouseEvent e) {
-                    button.setBackground(new Color(255, 167, 38));
-                }
-                @Override
-                public void mouseExited(MouseEvent e) {
-                    button.setBackground(new Color(255, 152, 0));
-                }
-            });
-            return button;
-        });
+        if ("admin".equals(dataStorage.getUserRole(currentUsername))) {
+            // Renderer dan Editor untuk Kolom "Aksi 1" (Kembalikan)
+            table.getColumnModel().getColumn(table.getColumnCount() - 2).setCellRenderer(new ButtonRenderer("Kembalikan", new Color(255, 152, 0)));
+            table.getColumnModel().getColumn(table.getColumnCount() - 2).setCellEditor(new ButtonEditor(new JCheckBox(), "Kembalikan") {
+                private String currentLoanId;
+                private int currentRow;
 
-        table.getColumnModel().getColumn(9).setCellEditor(new DefaultCellEditor(new JCheckBox()) {
-            @Override
-            public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-                if (row >= table.getRowCount()) { // Cegah akses baris yang sudah dihapus
-                    stopCellEditing();
-                    return new JLabel("");
-                }
-                JButton button;
-                String status = (String) table.getValueAt(row, 8);
-                if ("Belum Dikembalikan".equals(status)) {
-                    button = new JButton("Kembalikan");
-                    button.addActionListener(e -> {
-                        System.out.println("Tombol Kembalikan diklik pada baris: " + row); // Debugging
-                        if (row >= 0 && row < table.getRowCount()) { // Pastikan baris valid
-                            String loanId = (String) table.getValueAt(row, 1);
-                            System.out.println("Loan ID yang dipilih: " + loanId); // Debugging
+                @Override
+                public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                    currentRow = row;
+                    JButton editorButton = (JButton) super.getTableCellEditorComponent(table, value, isSelected, row, column);
+
+                    String status = (String) table.getModel().getValueAt(row, table.getColumnCount() - 3);
+                    if ("Sudah Dikembalikan".equals(status)) {
+                        editorButton.setEnabled(false);
+                        editorButton.setBackground(new Color(150, 150, 150));
+                    } else {
+                        editorButton.setEnabled(true);
+                        editorButton.setBackground(new Color(255, 152, 0));
+                    }
+                    currentLoanId = (String) table.getModel().getValueAt(row, 1);
+
+                    editorButton.addActionListener(e -> {
+                        if (editorButton.isEnabled()) {
+                            System.out.println("Tombol Kembalikan diklik pada baris: " + currentRow);
+                            System.out.println("Loan ID yang dipilih: " + currentLoanId);
+
                             Loan loan = dataStorage.getLoans().stream()
-                                    .filter(l -> l.getLoanId().equals(loanId))
+                                    .filter(l -> l.getLoanId().equals(currentLoanId))
                                     .findFirst()
                                     .orElse(null);
+
                             if (loan != null) {
-                                System.out.println("Loan ditemukan: " + loan); // Debugging
+                                System.out.println("Loan ditemukan: " + loan);
                                 if (!loan.isReturned()) {
-                                    loan.setReturnDate(new Date());
+                                    loan.setReturnDate(LocalDate.now());
                                     loan.setReturned(true);
                                     loan.getBook().setBorrowed(false);
+
                                     dataStorage.updateLoan(loan);
 
-                                    // Hapus peminjaman dari DataStorage dan database
-                                    dataStorage.getLoans().remove(loan);
-                                    deleteLoanFromDatabase(loanId);
-
-                                    // Hentikan pengeditan sebelum memperbarui tabel
-                                    if (table.getCellEditor() != null) {
-                                        table.getCellEditor().stopCellEditing();
+                                    if (libraryUI != null && libraryUI.getFineManagementPanel() != null) {
+                                        dataStorage.deleteFineFromDatabase(currentLoanId);
                                     }
-                                    table.clearSelection();
 
-                                    // Perbarui tabel
+                                    boolean deleted = dataStorage.deleteLoan(currentLoanId);
+                                    if (deleted) {
+                                        System.out.println("Peminjaman " + currentLoanId + " berhasil dihapus dari database setelah dikembalikan.");
+                                    } else {
+                                        System.err.println("Gagal menghapus peminjaman " + currentLoanId + " dari database setelah dikembalikan.");
+                                    }
+
                                     SwingUtilities.invokeLater(() -> {
-                                        updateTable();
                                         JOptionPane.showMessageDialog(BorrowPanel.this, "Buku berhasil dikembalikan dan peminjaman dihapus!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                                        updateTable();
+                                        if (libraryUI != null) {
+                                            libraryUI.updateAllPanels();
+                                        }
                                     });
                                 } else {
-                                    System.out.println("Loan sudah dikembalikan sebelumnya."); // Debugging
                                     JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman ini sudah dikembalikan sebelumnya!", "Peringatan", JOptionPane.WARNING_MESSAGE);
                                 }
                             } else {
-                                System.out.println("Loan tidak ditemukan untuk loanId: " + loanId); // Debugging
-                                JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman tidak ditemukan! Mungkin data tidak sinkron.", "Error", JOptionPane.ERROR_MESSAGE);
-                            }
-                        } else {
-                            System.out.println("Baris tidak valid: " + row); // Debugging
-                            JOptionPane.showMessageDialog(BorrowPanel.this, "Baris tidak valid!", "Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                        stopCellEditing(); // Hentikan pengeditan setelah aksi
-                    });
-                } else {
-                    button = new JButton("Detail");
-                    button.addActionListener(e -> {
-                        if (row >= 0 && row < table.getRowCount()) { // Pastikan baris valid
-                            String loanId = (String) table.getValueAt(row, 1);
-                            Loan loan = dataStorage.getLoans().stream()
-                                    .filter(l -> l.getLoanId().equals(loanId))
-                                    .findFirst()
-                                    .orElse(null);
-                            if (loan != null) {
-                                JOptionPane.showMessageDialog(BorrowPanel.this,
-                                        "Detail Peminjaman:\n" +
-                                        "ID Peminjaman: " + loan.getLoanId() + "\n" +
-                                        "Judul Buku: " + loan.getBook().getTitle() + "\n" +
-                                        "Peminjam: " + loan.getBorrowerName() + "\n" +
-                                        "Tanggal Pinjam: " + loan.getLoanDate() + "\n" +
-                                        "Tanggal Kembali: " + (loan.getReturnDate() != null ? loan.getReturnDate() : "-"),
-                                        "Detail Peminjaman", JOptionPane.INFORMATION_MESSAGE);
-                            } else {
-                                JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman tidak ditemukan!", "Error", JOptionPane.ERROR_MESSAGE);
+                                JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman tidak ditemukan untuk loanId: " + currentLoanId, "Error", JOptionPane.ERROR_MESSAGE);
                             }
                         }
-                        stopCellEditing(); // Hentikan pengeditan setelah aksi
+                        stopCellEditing();
                     });
-                }
-                button.setFont(new Font("Roboto", Font.BOLD, 12));
-                button.setBackground(new Color(255, 152, 0));
-                button.setForeground(Color.WHITE);
-                button.setFocusPainted(false);
-                button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                return button;
-            }
-        });
 
-        table.getColumnModel().getColumn(10).setCellRenderer((table, value, isSelected, hasFocus, row, column) -> {
-            if (row >= table.getRowCount()) { // Cegah akses baris yang sudah dihapus
-                return new JLabel("");
-            }
-            JButton button = new JButton("Belum Dikembalikan");
-            button.setFont(new Font("Roboto", Font.BOLD, 12));
-            button.setBackground(new Color(244, 67, 54));
-            button.setForeground(Color.WHITE);
-            button.setFocusPainted(false);
-            button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-            button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            button.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseEntered(MouseEvent e) {
-                    button.setBackground(new Color(239, 83, 80));
-                }
-                @Override
-                public void mouseExited(MouseEvent e) {
-                    button.setBackground(new Color(244, 67, 54));
+                    return editorButton;
                 }
             });
-            return button;
-        });
 
-        table.getColumnModel().getColumn(10).setCellEditor(new DefaultCellEditor(new JCheckBox()) {
-            @Override
-            public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-                if (row >= table.getRowCount()) { // Cegah akses baris yang sudah dihapus
-                    stopCellEditing();
-                    return new JLabel("");
-                }
-                JButton button = new JButton("Belum Dikembalikan");
-                button.addActionListener(e -> {
-                    if (row >= 0 && row < table.getRowCount()) { // Pastikan baris valid
-                        String loanId = (String) table.getValueAt(row, 1);
-                        Loan loan = dataStorage.getLoans().stream()
-                                .filter(l -> l.getLoanId().equals(loanId))
-                                .findFirst()
-                                .orElse(null);
-                        if (loan != null) {
-                            FineManagementPanel.addFine(loan, 0); // Tambahkan denda tanpa menghitung hari terlambat awal
-                            if (libraryUI != null && libraryUI.getFineManagementPanel() != null) {
-                                libraryUI.getFineManagementPanel().refresh();
-                            }
-                            JOptionPane.showMessageDialog(BorrowPanel.this, "Buku telah ditambahkan ke Manajemen Denda!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
-                            // Hentikan pengeditan sebelum memperbarui tabel
-                            if (table.getCellEditor() != null) {
-                                table.getCellEditor().stopCellEditing();
-                            }
-                            table.clearSelection();
-                            updateTable();
-                        } else {
-                            JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman tidak ditemukan!", "Error", JOptionPane.ERROR_MESSAGE);
-                        }
+            // Renderer dan Editor untuk Kolom "Aksi 2" (Denda)
+            table.getColumnModel().getColumn(table.getColumnCount() - 1).setCellRenderer(new ButtonRenderer("Denda", new Color(244, 67, 54)));
+            table.getColumnModel().getColumn(table.getColumnCount() - 1).setCellEditor(new ButtonEditor(new JCheckBox(), "Denda") {
+                private String currentLoanId;
+                private int currentRow;
+
+                @Override
+                public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                    currentRow = row;
+                    JButton editorButton = (JButton) super.getTableCellEditorComponent(table, value, isSelected, row, column);
+
+                    String status = (String) table.getModel().getValueAt(row, table.getColumnCount() - 3);
+                    if ("Sudah Dikembalikan".equals(status)) {
+                        editorButton.setEnabled(false);
+                        editorButton.setBackground(new Color(150, 150, 150));
+                    } else {
+                        editorButton.setEnabled(true);
+                        editorButton.setBackground(new Color(244, 67, 54));
                     }
-                    stopCellEditing(); // Hentikan pengeditan setelah aksi
-                });
-                button.setFont(new Font("Roboto", Font.BOLD, 12));
-                button.setBackground(new Color(244, 67, 54));
-                button.setForeground(Color.WHITE);
-                button.setFocusPainted(false);
-                button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-                button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                return button;
-            }
-        });
+                    currentLoanId = (String) table.getModel().getValueAt(row, 1);
+
+                    editorButton.addActionListener(e -> {
+                        if (editorButton.isEnabled()) {
+                            System.out.println("Tombol Denda diklik pada baris: " + currentRow);
+                            System.out.println("Loan ID untuk denda: " + currentLoanId);
+
+                            Loan loan = dataStorage.getLoans().stream()
+                                    .filter(l -> l.getLoanId().equals(currentLoanId))
+                                    .findFirst()
+                                    .orElse(null);
+
+                            if (loan != null) {
+                                if (!loan.isReturned()) {
+                                    if (libraryUI != null && libraryUI.getFineManagementPanel() != null) {
+                                        libraryUI.getFineManagementPanel().addFine(loan, 0);
+                                        libraryUI.getFineManagementPanel().refresh();
+                                        libraryUI.showCard("FineManagementPanel");
+                                        JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman " + loan.getBook().getTitle() + " ditambahkan ke Manajemen Denda.", "Denda Ditambahkan", JOptionPane.INFORMATION_MESSAGE);
+                                    }
+                                } else {
+                                    JOptionPane.showMessageDialog(BorrowPanel.this, "Buku ini sudah dikembalikan, tidak bisa dikenakan denda!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                                }
+                            } else {
+                                JOptionPane.showMessageDialog(BorrowPanel.this, "Peminjaman tidak ditemukan! Mungkin data tidak sinkron.", "Error", JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                        stopCellEditing();
+                    });
+
+                    return editorButton;
+                }
+            });
+        }
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
@@ -530,35 +458,24 @@ public class BorrowPanel extends JPanel {
 
         updateTable();
         System.out.println("Tabel peminjaman dimuat dengan " + tableModel.getRowCount() + " peminjaman.");
-        System.out.println("Isi dataStorage.getLoans(): " + dataStorage.getLoans()); // Debugging
+        System.out.println("Isi dataStorage.getLoans(): " + dataStorage.getLoans());
     }
 
-    private void deleteLoanFromDatabase(String loanId) {
-        try {
-            java.sql.Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:library.db");
-            java.sql.PreparedStatement pstmt = conn.prepareStatement("DELETE FROM loans WHERE loan_id = ?");
-            pstmt.setString(1, loanId);
-            pstmt.executeUpdate();
-            pstmt.close();
-            conn.close();
-            System.out.println("Peminjaman dihapus dari database: " + loanId); // Debugging
-        } catch (java.sql.SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Gagal menghapus peminjaman dari database: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    // Pastikan metode ini public
     public void updateTable() {
-        System.out.println("Memperbarui tabel..."); // Debugging
-        System.out.println("Isi dataStorage.getLoans() sebelum update: " + dataStorage.getLoans()); // Debugging
+        System.out.println("Memperbarui tabel...");
+        System.out.println("Isi dataStorage.getLoans() sebelum update: " + dataStorage.getLoans());
         tableModel.setRowCount(0);
         int rowNumber = 1;
-        for (Loan loan : dataStorage.getLoans()) {
-            if (showUnreturnedOnly && loan.isReturned()) {
-                continue;
-            }
-            tableModel.addRow(new Object[]{
+        User currentUser = dataStorage.getUserByUsername(currentUsername);
+        String borrowerFullName = (currentUser != null) ? currentUser.getFullName() : "";
+
+        dataStorage.loadDataFromDatabase();
+        dataStorage.loadFinesFromDatabase();
+
+        if ("admin".equals(dataStorage.getUserRole(currentUsername))) {
+            for (Loan loan : dataStorage.getLoans()) {
+                LocalDate returnExpectedDate = loan.getLoanDate().plusDays(7);
+                tableModel.addRow(new Object[]{
                     rowNumber++,
                     loan.getLoanId(),
                     loan.getBook().getTitle(),
@@ -567,25 +484,136 @@ public class BorrowPanel extends JPanel {
                     loan.getClassName(),
                     loan.getNim(),
                     loan.getLoanDate().toString(),
+                    returnExpectedDate.toString(),
                     loan.isReturned() ? "Sudah Dikembalikan" : "Belum Dikembalikan",
-                    "", // Placeholder untuk tombol Kembalikan/Detail
-                    ""  // Placeholder untuk tombol Belum Dikembalikan
-            });
+                    "", // Kolom Aksi 1 (untuk Kembalikan)
+                    ""  // Kolom Aksi 2 (untuk Denda)
+                });
+            }
+        } else {
+            for (Loan loan : dataStorage.getLoans()) {
+                if (loan.getBorrowerName().equalsIgnoreCase(borrowerFullName) && (!showUnreturnedOnly || !loan.isReturned())) {
+                    LocalDate returnExpectedDate = loan.getLoanDate().plusDays(7);
+                    tableModel.addRow(new Object[]{
+                        rowNumber++,
+                        loan.getLoanId(),
+                        loan.getBook().getTitle(),
+                        loan.getBook().getType(),
+                        loan.getLoanDate().toString(),
+                        returnExpectedDate.toString(),
+                        loan.isReturned() ? "Sudah Dikembalikan" : "Belum Dikembalikan"
+                    });
+                }
+            }
         }
 
         bookComboBox.removeAllItems();
+        dataStorage.loadDataFromDatabase();
         for (Book book : dataStorage.getBooks()) {
             if (!book.isBorrowed()) {
                 bookComboBox.addItem(book);
             }
         }
-        System.out.println("Tabel diperbarui dengan " + tableModel.getRowCount() + " peminjaman."); // Debugging
+
+        System.out.println("Tabel diperbarui dengan " + tableModel.getRowCount() + " peminjaman.");
+        table.revalidate();
+        table.repaint();
+    }
+
+    public void updateUserTable() {
+        System.out.println("Memperbarui tabel pengguna...");
+        updateTable();
     }
 
     private void clearFields() {
         bookComboBox.setSelectedIndex(-1);
-        borrowerNameField.setText("");
-        classField.setText("");
-        nimField.setText("");
+    }
+
+    // Class ButtonRenderer and ButtonEditor for JTable (pindahkan ke luar sebagai top-level class jika tidak statis)
+    // Dibuat sebagai static inner class agar dapat diakses tanpa instance BorrowPanel
+    static class ButtonRenderer extends JButton implements javax.swing.table.TableCellRenderer {
+        private String buttonText;
+        private Color bgColor;
+
+        public ButtonRenderer(String text, Color bgColor) {
+            this.buttonText = text;
+            this.bgColor = bgColor;
+            setText(text);
+            setBackground(bgColor);
+            setForeground(Color.WHITE);
+            setOpaque(true);
+            setFont(new Font("Roboto", Font.BOLD, 12));
+            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            setFocusPainted(false);
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            setText(buttonText);
+            if (isSelected) {
+                setBackground(bgColor.darker());
+            } else {
+                setBackground(bgColor);
+            }
+            return this;
+        }
+    }
+
+    static class ButtonEditor extends DefaultCellEditor {
+        protected JButton button;
+        private String label;
+        private boolean isPushed;
+
+        public ButtonEditor(JCheckBox checkBox, String buttonText) {
+            super(checkBox);
+            button = new JButton();
+            button.setOpaque(true);
+            button.setFont(new Font("Roboto", Font.BOLD, 12));
+            button.setForeground(Color.WHITE);
+            button.setBackground(new Color(255, 152, 0)); // Default background, akan diubah oleh getTableCellEditorComponent
+            button.setFocusPainted(false);
+            button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+            button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+            button.addActionListener(e -> fireEditingStopped());
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            if (isSelected) {
+                button.setBackground(button.getBackground().darker());
+            } else {
+                // Warna background akan diset di bawah
+            }
+            label = (value == null) ? "" : value.toString();
+            button.setText(label);
+            isPushed = true;
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            if (isPushed) {
+                // Aksi akan dilakukan oleh ActionListener di kelas BorrowPanel
+            }
+            isPushed = false;
+            return label;
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+            isPushed = false;
+            return super.stopCellEditing();
+        }
+
+        @Override
+        public boolean shouldSelectCell(EventObject anEvent) {
+            if (anEvent instanceof MouseEvent) {
+                MouseEvent e = (MouseEvent) anEvent;
+                return e.getID() == MouseEvent.MOUSE_PRESSED;
+            }
+            return true;
+        }
     }
 }

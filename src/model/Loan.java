@@ -1,7 +1,12 @@
 package model;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.LocalDate; // Gunakan ini
+import java.time.format.DateTimeFormatter; // Tambahkan import ini jika ingin format string
+
+// Hapus import berikut karena kita tidak lagi menggunakan java.util.Date
+// import java.text.SimpleDateFormat;
+// import java.util.Date;
+// import java.time.ZoneId; // Ini bisa tetap ada jika Anda punya kebutuhan lain yang spesifik
 
 public class Loan {
     private String loanId;
@@ -9,23 +14,24 @@ public class Loan {
     private String borrowerName;
     private String className;
     private String nim;
-    private Date loanDate;
-    private Date returnDate;
-    private boolean returned;
+    private LocalDate loanDate; // Ubah ke LocalDate
+    private LocalDate returnDate; // Ubah ke LocalDate
+    private boolean isReturned;
 
+    // Constructor untuk membuat peminjaman baru
     public Loan(String loanId, Book book, String borrowerName, String className, String nim) {
         this.loanId = loanId;
         this.book = book;
         this.borrowerName = borrowerName;
         this.className = className;
         this.nim = nim;
-        this.loanDate = new Date();
-        this.returnDate = null;
-        this.returned = false;
+        this.loanDate = LocalDate.now(); // Gunakan LocalDate.now()
+        this.returnDate = null; // Awalnya null karena belum dikembalikan
+        this.isReturned = false;
     }
 
-    // Konstruktor baru untuk memuat data dari database
-    public Loan(String loanId, Book book, String borrowerName, String className, String nim, Date loanDate, Date returnDate, boolean returned) {
+    // Constructor untuk memuat peminjaman (misalnya dari database/file)
+    public Loan(String loanId, Book book, String borrowerName, String className, String nim, LocalDate loanDate, LocalDate returnDate, boolean isReturned) {
         this.loanId = loanId;
         this.book = book;
         this.borrowerName = borrowerName;
@@ -33,26 +39,39 @@ public class Loan {
         this.nim = nim;
         this.loanDate = loanDate;
         this.returnDate = returnDate;
-        this.returned = returned;
+        this.isReturned = isReturned;
     }
 
+    // Getters
     public String getLoanId() { return loanId; }
     public Book getBook() { return book; }
     public String getBorrowerName() { return borrowerName; }
     public String getClassName() { return className; }
     public String getNim() { return nim; }
-    public Date getLoanDate() { return loanDate; }
-    public Date getReturnDate() { return returnDate; }
-    public void setReturnDate(Date returnDate) { this.returnDate = returnDate; }
-    public boolean isReturned() { return returned; }
-    public void setReturned(boolean returned) { this.returned = returned; }
 
+    public LocalDate getLoanDate() { return loanDate; } // Sekarang mengembalikan LocalDate
+    public LocalDate getReturnDate() { return returnDate; } // Sekarang mengembalikan LocalDate
+    public boolean isReturned() { return isReturned; }
+
+    // Setters
+    public void setLoanId(String loanId) { this.loanId = loanId; }
+    public void setBook(Book book) { this.book = book; }
+    public void setBorrowerName(String borrowerName) { this.borrowerName = borrowerName; }
+    public void setClassName(String className) { this.className = className; }
+    public void setNim(String nim) { this.nim = nim; }
+
+    public void setLoanDate(LocalDate loanDate) { this.loanDate = loanDate; } // Sekarang menerima LocalDate
+    public void setReturnDate(LocalDate returnDate) { this.returnDate = returnDate; } // Sekarang menerima LocalDate
+    public void setReturned(boolean returned) { this.isReturned = returned; }
+
+    // Metode untuk mendapatkan tanggal dalam format string
     public String getFormattedLoanDate() {
-        return new SimpleDateFormat("yyyy-MM-dd").format(loanDate);
+        return loanDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
     public String getFormattedReturnDate() {
-        return returnDate != null ? new SimpleDateFormat("yyyy-MM-dd").format(returnDate) : "";
+        // Cek jika returnDate tidak null sebelum memformatnya
+        return returnDate != null ? returnDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "";
     }
 
     @Override
@@ -63,9 +82,9 @@ public class Loan {
                 ", borrowerName='" + borrowerName + '\'' +
                 ", className='" + className + '\'' +
                 ", nim='" + nim + '\'' +
-                ", loanDate=" + getFormattedLoanDate() +
-                ", returnDate=" + getFormattedReturnDate() +
-                ", returned=" + returned +
+                ", loanDate=" + loanDate + // LocalDate sudah memiliki toString() yang baik
+                ", returnDate=" + returnDate + // LocalDate sudah memiliki toString() yang baik
+                ", returned=" + isReturned +
                 '}';
     }
 }

@@ -52,3 +52,4 @@ public class ReaderPanel extends JPanel {
         add(new JScrollPane(infoArea), BorderLayout.CENTER);
     }
 }
+

@@ -1,6 +1,7 @@
 package ui;
 
 import model.Loan;
+import model.Book;
 import storage.DataStorage;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -8,29 +9,29 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.sql.*;
+import java.sql.*; // Keep this import
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class FineManagementPanel extends JPanel {
     private DataStorage dataStorage;
     private DefaultTableModel tableModel;
     private JTable table;
-    private List<Fine> fines;
-    private LibraryUI libraryUI; // Referensi ke LibraryUI untuk mengakses BorrowPanel
+    private List<Fine> fines; // Local list, should be consistent with DB
+    private LibraryUI libraryUI;
 
     public FineManagementPanel(DataStorage dataStorage, LibraryUI libraryUI) {
         this.dataStorage = dataStorage;
         this.libraryUI = libraryUI;
-        this.fines = new ArrayList<>();
+        this.fines = new ArrayList<>(); // Initialize local list
         setLayout(new BorderLayout());
         setBackground(new Color(245, 247, 250));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Header dengan gradien
         JPanel headerPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -50,12 +51,11 @@ public class FineManagementPanel extends JPanel {
         headerPanel.add(titleLabel, BorderLayout.CENTER);
         add(headerPanel, BorderLayout.NORTH);
 
-        // Tabel denda dengan kolom "No" dan "Aksi"
-        String[] columns = {"No", "ID Peminjaman", "Judul Buku", "Tipe Buku", "Peminjam", "Tanggal Pinjam", "Hari Terlambat", "Denda (Rp)", "Aksi"};
+        String[] columns = {"No", "Nama Peminjam", "Kelas", "NIM", "ID Peminjaman", "Judul Buku", "Tipe Buku", "Tanggal Pinjam", "Hari Terlambat", "Denda (Rp)", "Aksi"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 8 && tableModel.getRowCount() > 0 && row >= 0 && row < tableModel.getRowCount();
+                return column == 10 && tableModel.getRowCount() > 0 && row >= 0 && row < tableModel.getRowCount();
             }
         };
         table = new JTable(tableModel);
@@ -67,7 +67,6 @@ public class FineManagementPanel extends JPanel {
         table.setGridColor(new Color(220, 220, 220));
         table.setShowGrid(true);
 
-        // Efek hover pada baris
         table.addMouseMotionListener(new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
@@ -86,16 +85,8 @@ public class FineManagementPanel extends JPanel {
         tableHeader.setForeground(Color.WHITE);
         tableHeader.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
 
-        // Renderer untuk kolom "Aksi"
-        table.getColumnModel().getColumn(8).setCellRenderer((table, value, isSelected, hasFocus, row, column) -> {
-            // Jika tabel kosong, kembalikan label kosong
-            if (tableModel.getRowCount() == 0) {
-                JLabel emptyLabel = new JLabel("");
-                emptyLabel.setBackground(new Color(245, 247, 250));
-                return emptyLabel;
-            }
-            // Jika baris tidak valid, kembalikan label kosong
-            if (row < 0 || row >= tableModel.getRowCount()) {
+        table.getColumnModel().getColumn(10).setCellRenderer((table, value, isSelected, hasFocus, row, column) -> {
+            if (tableModel.getRowCount() == 0 || row < 0 || row >= tableModel.getRowCount()) {
                 JLabel emptyLabel = new JLabel("");
                 emptyLabel.setBackground(new Color(245, 247, 250));
                 return emptyLabel;
@@ -120,52 +111,63 @@ public class FineManagementPanel extends JPanel {
             return button;
         });
 
-        // Editor untuk kolom "Aksi"
-        table.getColumnModel().getColumn(8).setCellEditor(new DefaultCellEditor(new JCheckBox()) {
+        table.getColumnModel().getColumn(10).setCellEditor(new DefaultCellEditor(new JCheckBox()) {
             @Override
             public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
-                // Jika tabel kosong atau baris tidak valid, kembalikan label kosong
                 if (tableModel.getRowCount() == 0 || row < 0 || row >= tableModel.getRowCount()) {
                     return new JLabel("");
                 }
                 JButton button = new JButton("Tandai Lunas");
                 button.addActionListener(e -> {
-                    // Pastikan baris masih valid sebelum menghapus
-                    if (tableModel.getRowCount() > 0 && row >= 0 && row < tableModel.getRowCount()) {
-                        String loanId = (String) tableModel.getValueAt(row, 1);
+                    int selectedRow = table.getSelectedRow();
+                    if (selectedRow >= 0 && selectedRow < tableModel.getRowCount()) {
+                        String loanId = (String) tableModel.getValueAt(selectedRow, 4); // Kolom ID Peminjaman
                         if (loanId != null) {
-                            // Cari Loan yang sesuai
+                            // Temukan Loan dari dataStorage, bukan hanya dari list fines lokal
                             Loan loan = dataStorage.getLoans().stream()
                                     .filter(l -> l.getLoanId().equals(loanId))
                                     .findFirst()
                                     .orElse(null);
+
                             if (loan != null) {
-                                // Tandai buku sebagai dikembalikan
-                                loan.setReturnDate(new Date());
+                                // 1. Tandai buku kembali di DataStorage dan database
+                                loan.setReturnDate(LocalDate.now());
                                 loan.setReturned(true);
-                                loan.getBook().setBorrowed(false);
-                                dataStorage.updateLoan(loan);
+                                loan.getBook().setBorrowed(false); // Pastikan buku tersedia lagi
+                                dataStorage.updateLoan(loan); // Update loan dan book status di database
 
-                                // Hapus Loan dari database dan DataStorage
-                                deleteLoanFromDatabase(loanId);
-                                dataStorage.getLoans().remove(loan);
+                                // 2. Hapus denda dari database
+                                dataStorage.deleteFineFromDatabase(loanId); // Panggil metode DataStorage
+                                
+                                // 3. Hapus peminjaman dari database (jika memang ingin dihapus dari riwayat)
+                                // Jika tidak ingin menghapus peminjaman dari tabel loans setelah lunas,
+                                // jangan panggil baris di bawah ini.
+                                dataStorage.deleteLoan(loanId); // Hapus peminjaman dari tabel loans setelah lunas
+
+                                SwingUtilities.invokeLater(() -> {
+                                    // Hapus baris dari tabel model lokal
+                                    DefaultTableModel model = (DefaultTableModel) table.getModel();
+                                    // Pastikan selectedRow masih valid sebelum remove
+                                    if (selectedRow < model.getRowCount()) {
+                                        model.removeRow(selectedRow);
+                                    }
+                                    
+                                    // Perbarui tampilan di BorrowPanel juga
+                                    if (libraryUI != null && libraryUI.getBorrowPanel() != null) {
+                                        libraryUI.getBorrowPanel().updateTable();
+                                    }
+                                    JOptionPane.showMessageDialog(FineManagementPanel.this, "Denda untuk peminjaman " + loanId + " ditandai lunas, buku dikembalikan, dan peminjaman dihapus!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                                    updateTable(); // Perbarui tabel denda
+                                    libraryUI.updateAllPanels(); // Perbarui semua panel
+                                });
+                            } else {
+                                JOptionPane.showMessageDialog(FineManagementPanel.this, "Peminjaman tidak ditemukan! Mungkin data tidak sinkron.", "Error", JOptionPane.ERROR_MESSAGE);
                             }
-
-                            // Hapus denda
-                            deleteFineFromDatabase(loanId);
-
-                            // Hentikan pengeditan sebelum refresh
-                            stopCellEditing();
-                            SwingUtilities.invokeLater(() -> {
-                                refresh();
-                                // Segarkan BorrowPanel untuk memperbarui tabel peminjaman dan bookComboBox
-                                if (libraryUI != null && libraryUI.getBorrowPanel() != null) {
-                                    libraryUI.getBorrowPanel().updateTable();
-                                }
-                                JOptionPane.showMessageDialog(FineManagementPanel.this, "Denda untuk peminjaman " + loanId + " ditandai lunas, buku dikembalikan, dan peminjaman dihapus!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
-                            });
                         }
+                    } else {
+                        JOptionPane.showMessageDialog(FineManagementPanel.this, "Pilih denda yang akan ditandai lunas.", "Peringatan", JOptionPane.WARNING_MESSAGE);
                     }
+                    stopCellEditing();
                 });
                 button.setFont(new Font("Roboto", Font.BOLD, 12));
                 button.setBackground(new Color(76, 175, 80));
@@ -186,176 +188,118 @@ public class FineManagementPanel extends JPanel {
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
         add(scrollPane, BorderLayout.CENTER);
 
-        // Memuat semua denda dari database saat panel dibuka
-        loadFinesFromDatabase();
-        updateTable();
+        updateTable(); // Panggil updateTable untuk mengisi data awal
         System.out.println("Tabel manajemen denda dimuat dengan " + tableModel.getRowCount() + " peminjaman.");
     }
 
-    public static void addFine(Loan loan, long additionalDays) {
-        // Hitung hari terlambat dari tanggal pinjam sampai sekarang
-        Date loanDate = loan.getLoanDate();
-        Date currentDate = new Date();
-        long daysLate = ChronoUnit.DAYS.between(
-                Instant.ofEpochMilli(loanDate.getTime()),
-                Instant.ofEpochMilli(currentDate.getTime())
-        ) + additionalDays;
+    // Metode untuk menambahkan denda. Kini memanggil saveFineToDatabase di DataStorage
+    public void addFine(Loan loan, long additionalDays) {
+        LocalDate loanDate = loan.getLoanDate();
+        LocalDate currentDate = LocalDate.now();
+        // Pastikan daysLate tidak negatif
+        long daysLate = Math.max(0, ChronoUnit.DAYS.between(loanDate, currentDate) - 7); // Jika tanggal kembali 7 hari setelah pinjam
+        daysLate += additionalDays; // Tambahan hari jika ada
 
-        // Denda awal Rp5.000, ditambah Rp5.000 per hari terlambat atau per klik "Belum Dikembalikan"
-        long fineAmount = 5000 + (daysLate * 5000);
+        long fineAmount = 5000 + (daysLate * 5000); // 5000 + (hari terlambat * 5000)
 
-        Fine fine = new Fine(loan.getLoanId(), loan.getBook().getTitle(), loan.getBook().getType(),
-                loan.getBorrowerName(), loanDate, daysLate, fineAmount);
-        saveFineToDatabase(fine);
+        Fine fine = new Fine(
+            loan.getLoanId(),
+            loan.getBook().getTitle(),
+            loan.getBook().getType(),
+            loan.getBorrowerName(),
+            loan.getClassName(),
+            loan.getNim(),
+            loanDate,
+            daysLate,
+            fineAmount
+        );
+        dataStorage.saveFineToDatabase(fine); // Panggil metode DataStorage
         System.out.println("Denda ditambahkan untuk peminjaman " + loan.getLoanId() + ": " + fineAmount + " (Hari Terlambat: " + daysLate + ")");
+        updateTable(); // Perbarui tampilan tabel setelah menambahkan denda
     }
 
+    // Ubah loadFinesFromDatabase untuk menggunakan DataStorage
     private void loadFinesFromDatabase() {
         fines.clear();
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:library.db")) {
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT * FROM fines");
-            while (rs.next()) {
-                Fine fine = new Fine(
-                        rs.getString("loan_id"),
-                        rs.getString("book_title"),
-                        rs.getString("book_type"),
-                        rs.getString("borrower_name"),
-                        new Date(rs.getLong("loan_date")),
-                        rs.getLong("days_late"),
-                        rs.getLong("fine_amount")
-                );
-                fines.add(fine);
-            }
-            rs.close();
-            stmt.close();
-            System.out.println("Memuat denda dari database: " + fines.size() + " denda ditemukan.");
-        } catch (SQLException e) {
-            System.err.println("Gagal memuat denda dari database: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // Ambil daftar denda dari DataStorage
+        fines.addAll(dataStorage.getFines());
+        System.out.println("Memuat denda dari DataStorage: " + fines.size() + " denda ditemukan.");
     }
 
+    // Hapus metode ini karena sudah dipindahkan ke DataStorage atau tidak lagi diperlukan
+    /*
     private void checkAndAddOverdueFines() {
-        // Tidak diperlukan karena denda ditambahkan secara manual
         System.out.println("Metode checkAndAddOverdueFines tidak digunakan lagi.");
     }
+    */
 
-    private static void saveFineToDatabase(Fine fine) {
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:library.db")) {
-            // Cek apakah denda dengan loan_id sudah ada
-            PreparedStatement checkStmt = conn.prepareStatement("SELECT COUNT(*) FROM fines WHERE loan_id = ?");
-            checkStmt.setString(1, fine.getLoanId());
-            ResultSet rs = checkStmt.executeQuery();
-            boolean exists = rs.getInt(1) > 0;
-            rs.close();
-            checkStmt.close();
-
-            if (exists) {
-                // Update denda yang sudah ada dengan penambahan
-                PreparedStatement updateStmt = conn.prepareStatement(
-                        "UPDATE fines SET book_title = ?, book_type = ?, borrower_name = ?, loan_date = ?, days_late = ?, fine_amount = ? WHERE loan_id = ?");
-                updateStmt.setString(1, fine.getBookTitle());
-                updateStmt.setString(2, fine.getBookType());
-                updateStmt.setString(3, fine.getBorrowerName());
-                updateStmt.setLong(4, fine.getLoanDate().getTime());
-                updateStmt.setLong(5, fine.getDaysLate());
-                updateStmt.setLong(6, fine.getFineAmount());
-                updateStmt.setString(7, fine.getLoanId());
-                updateStmt.executeUpdate();
-                updateStmt.close();
-                System.out.println("Denda untuk peminjaman " + fine.getLoanId() + " diperbarui di database: " + fine.getFineAmount());
-            } else {
-                // Tambah denda baru
-                PreparedStatement insertStmt = conn.prepareStatement(
-                        "INSERT INTO fines (loan_id, book_title, book_type, borrower_name, loan_date, days_late, fine_amount) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                insertStmt.setString(1, fine.getLoanId());
-                insertStmt.setString(2, fine.getBookTitle());
-                insertStmt.setString(3, fine.getBookType());
-                insertStmt.setString(4, fine.getBorrowerName());
-                insertStmt.setLong(5, fine.getLoanDate().getTime());
-                insertStmt.setLong(6, fine.getDaysLate());
-                insertStmt.setLong(7, fine.getFineAmount());
-                insertStmt.executeUpdate();
-                insertStmt.close();
-                System.out.println("Denda baru untuk peminjaman " + fine.getLoanId() + " ditambahkan ke database: " + fine.getFineAmount());
-            }
-        } catch (SQLException e) {
-            System.err.println("Gagal menyimpan denda ke database: " + e.getMessage());
-            e.printStackTrace();
-        }
+    // Hapus metode ini karena sudah dipindahkan ke DataStorage
+    /*
+    private void saveFineToDatabase(Fine fine) {
+        // Logika ini sekarang ada di DataStorage
     }
+    */
 
-    private void deleteFineFromDatabase(String loanId) {
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:library.db")) {
-            PreparedStatement pstmt = conn.prepareStatement("DELETE FROM fines WHERE loan_id = ?");
-            pstmt.setString(1, loanId);
-            int rowsAffected = pstmt.executeUpdate();
-            pstmt.close();
-            System.out.println("Menghapus denda untuk peminjaman " + loanId + ": " + rowsAffected + " baris dihapus.");
-        } catch (SQLException e) {
-            System.err.println("Gagal menghapus denda dari database: " + e.getMessage());
-            e.printStackTrace();
-        }
+    // Hapus metode ini karena sudah dipindahkan ke DataStorage
+    /*
+    public void deleteFineFromDatabase(String loanId) {
+        // Logika ini sekarang ada di DataStorage
     }
-
-    private void deleteLoanFromDatabase(String loanId) {
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:library.db")) {
-            PreparedStatement pstmt = conn.prepareStatement("DELETE FROM loans WHERE loan_id = ?");
-            pstmt.setString(1, loanId);
-            int rowsAffected = pstmt.executeUpdate();
-            pstmt.close();
-            System.out.println("Menghapus peminjaman " + loanId + " dari database: " + rowsAffected + " baris dihapus.");
-        } catch (SQLException e) {
-            System.err.println("Gagal menghapus peminjaman dari database: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
+    */
 
     private void updateTable() {
-        tableModel.setRowCount(0); // Bersihkan tabel sebelum mengisi ulang
-        loadFinesFromDatabase(); // Muat data terbaru dari database
+        tableModel.setRowCount(0);
+        loadFinesFromDatabase(); // Muat denda terbaru
         int rowNumber = 1;
         for (Fine fine : fines) {
             tableModel.addRow(new Object[]{
-                    rowNumber++,
-                    fine.getLoanId(),
-                    fine.getBookTitle(),
-                    fine.getBookType(),
-                    fine.getBorrowerName(),
-                    fine.getLoanDate().toString(),
-                    fine.getDaysLate(),
-                    fine.getFineAmount(),
-                    "Tandai Lunas"
+                rowNumber++,
+                fine.getBorrowerName(),
+                fine.getClassName() != null ? fine.getClassName() : "N/A",
+                fine.getNim() != null ? fine.getNim() : "N/A",
+                fine.getLoanId(),
+                fine.getBookTitle(),
+                fine.getBookType(),
+                fine.getLoanDate().toString(),
+                fine.getDaysLate(),
+                fine.getFineAmount(),
+                "Tandai Lunas"
             });
         }
         System.out.println("Tabel denda diperbarui dengan " + tableModel.getRowCount() + " entri.");
+        table.revalidate();
+        table.repaint();
     }
 
     public void refresh() {
         SwingUtilities.invokeLater(() -> {
             System.out.println("Menyegarkan FineManagementPanel...");
             updateTable();
-            table.clearSelection(); // Bersihkan seleksi untuk mencegah rendering tombol lama
+            table.clearSelection();
             revalidate();
             repaint();
         });
     }
 
-    private static class Fine {
+    // Kelas Fine tetap sama
+    public static class Fine {
         private String loanId;
         private String bookTitle;
         private String bookType;
         private String borrowerName;
-        private Date loanDate;
+        private String className;
+        private String nim;
+        private LocalDate loanDate;
         private long daysLate;
         private long fineAmount;
 
-        public Fine(String loanId, String bookTitle, String bookType, String borrowerName, Date loanDate, long daysLate, long fineAmount) {
+        public Fine(String loanId, String bookTitle, String bookType, String borrowerName, String className, String nim, LocalDate loanDate, long daysLate, long fineAmount) {
             this.loanId = loanId;
             this.bookTitle = bookTitle;
             this.bookType = bookType;
             this.borrowerName = borrowerName;
+            this.className = className;
+            this.nim = nim;
             this.loanDate = loanDate;
             this.daysLate = daysLate;
             this.fineAmount = fineAmount;
@@ -365,7 +309,9 @@ public class FineManagementPanel extends JPanel {
         public String getBookTitle() { return bookTitle; }
         public String getBookType() { return bookType; }
         public String getBorrowerName() { return borrowerName; }
-        public Date getLoanDate() { return loanDate; }
+        public String getClassName() { return className; }
+        public String getNim() { return nim; }
+        public LocalDate getLoanDate() { return loanDate; }
         public long getDaysLate() { return daysLate; }
         public long getFineAmount() { return fineAmount; }
     }

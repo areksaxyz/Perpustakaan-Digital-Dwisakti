@@ -87,9 +87,9 @@ public class ButtonComponents {
                         String url = digitalBooks.get(row).getUrl();
                         if (!url.isEmpty()) {
                             try {
-                                File file = new File(url);
+                                File file = new File(url); // Mengasumsikan URL adalah path file lokal
                                 if (file.exists()) {
-                                    try (PDDocument document = PDDocument.load(file)) {
+                                    try (PDDocument document = PDDocument.load(file)) { // Ganti Loader.loadPDF dengan PDDocument.load
                                         PDFViewer viewer = new PDFViewer(digitalBooks.get(row).getTitle(), document);
                                         viewer.setVisible(true);
                                     }
@@ -253,6 +253,7 @@ public class ButtonComponents {
                 book.setAuthor(authorField.getText());
                 book.setSubject(subjectField.getText());
                 book.setUrl(book.isDigital() ? urlField.getText() : "");
+                dataStorage.saveBook(book); // Simpan perubahan ke database
                 tableModel.setValueAt(book.getTitle(), row, 0);
                 tableModel.setValueAt(book.getAuthor(), row, 1);
                 editDialog.dispose();
