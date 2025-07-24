@@ -2880,3 +2880,28 @@ SEVERE: A severe compiler error occurred, full details of the error can be found
 2025.05.13 18:34:36 INFO  Shutting down server
 2025.05.13 18:34:36 INFO  shutting down Metals
 2025.05.13 18:34:36 INFO  Exiting server
+2025.07.19 17:54:36 INFO  Started: Metals version 1.6.0 in folders '/home/areksaxyz/Unduhan/Perpus' for client Code - OSS 1.101.2.
+2025.07.19 17:54:36 INFO  no build target found for /home/areksaxyz/Unduhan/Perpus/src/ui/FineManagementPanel.java. Using fallback presentation compiler.
+2025.07.19 17:54:37 WARN  no build tool detected in workspace '/home/areksaxyz/Unduhan/Perpus'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+2025.07.19 17:54:37 WARN  Build server is not auto-connectable.
+2025.07.19 17:54:37 WARN  no build target for: /home/areksaxyz/Unduhan/Perpus/src/ui/FineManagementPanel.java
+2025.07.19 17:54:37 WARN  no build target for: /home/areksaxyz/Unduhan/Perpus/src/ui/StudentDataPanel.java
+2025.07.19 17:54:37 WARN  no build target for: /home/areksaxyz/Unduhan/Perpus/src/storage/DataStorage.java
+2025.07.19 17:54:39 INFO  time: code lens generation in 1.05s
+2025.07.19 18:34:23 INFO  Shutting down server
+2025.07.19 18:34:23 INFO  shutting down Metals
+2025.07.19 18:34:23 INFO  Exiting server
+2025.07.21 11:55:30 INFO  Started: Metals version 1.6.0 in folders '/home/areksaxyz/Unduhan/Perpus' for client Code - OSS 1.101.2.
+2025.07.21 11:55:31 WARN  no build tool detected in workspace '/home/areksaxyz/Unduhan/Perpus'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+2025.07.21 11:55:31 WARN  Build server is not auto-connectable.
+2025.07.21 11:55:31 WARN  no build target for: /home/areksaxyz/Unduhan/Perpus/src/ui/LibraryUI.java
+2025.07.21 11:55:32 INFO  time: code lens generation in 1.31s
+2025.07.21 11:55:33 INFO  restarted 0 presentation compilers
+2025.07.21 11:55:36 INFO  no build target found for /home/areksaxyz/Unduhan/Perpus/src/ui/LibraryUI.java. Using fallback presentation compiler.
+2025.07.24 18:53:44 INFO  Started: Metals version 1.6.0 in folders '/home/areksaxyz/Unduhan/Perpus' for client Code - OSS 1.101.2.
+2025.07.24 18:53:45 WARN  no build tool detected in workspace '/home/areksaxyz/Unduhan/Perpus'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+2025.07.24 18:53:45 WARN  Build server is not auto-connectable.
+2025.07.24 18:53:45 WARN  no build target for: /home/areksaxyz/Unduhan/Perpus/src/ui/LibraryUI.java
+2025.07.24 18:55:45 INFO  Shutting down server
+2025.07.24 18:55:45 INFO  shutting down Metals
+2025.07.24 18:55:45 INFO  Exiting server
