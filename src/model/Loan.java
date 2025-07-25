@@ -3,10 +3,6 @@ package model;
 import java.time.LocalDate; // Gunakan ini
 import java.time.format.DateTimeFormatter; // Tambahkan import ini jika ingin format string
 
-// Hapus import berikut karena kita tidak lagi menggunakan java.util.Date
-// import java.text.SimpleDateFormat;
-// import java.util.Date;
-// import java.time.ZoneId; // Ini bisa tetap ada jika Anda punya kebutuhan lain yang spesifik
 
 public class Loan {
     private String loanId;
