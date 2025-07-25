@@ -45,8 +45,8 @@ public class Loan {
     public String getClassName() { return className; }
     public String getNim() { return nim; }
 
-    public LocalDate getLoanDate() { return loanDate; } // Sekarang mengembalikan LocalDate
-    public LocalDate getReturnDate() { return returnDate; } // Sekarang mengembalikan LocalDate
+    public LocalDate getLoanDate() { return loanDate; }
+    public LocalDate getReturnDate() { return returnDate;
     public boolean isReturned() { return isReturned; }
 
     // Setters
