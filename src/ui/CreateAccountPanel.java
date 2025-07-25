@@ -5,17 +5,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-// import java.util.Arrays; // Tidak diperlukan jika tidak ada operasi array
 
 public class CreateAccountPanel extends JPanel {
-    private LibraryUI libraryUI; // Mengubah mainFrame menjadi libraryUI untuk konsistensi
+    private LibraryUI libraryUI;
     private DataStorage dataStorage;
     private JTextField fullNameField;
     private JTextField nimField;
     private JTextField classField;
     private JTextField usernameField;
     private JPasswordField passwordField;
-    private JPasswordField confirmPasswordField; // Field untuk konfirmasi password
+    private JPasswordField confirmPasswordField;
 
     public CreateAccountPanel(LibraryUI libraryUI, DataStorage dataStorage) {
         this.libraryUI = libraryUI;
