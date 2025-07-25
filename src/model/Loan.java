@@ -21,8 +21,8 @@ public class Loan {
         this.borrowerName = borrowerName;
         this.className = className;
         this.nim = nim;
-        this.loanDate = LocalDate.now(); // Gunakan LocalDate.now()
-        this.returnDate = null; // Awalnya null karena belum dikembalikan
+        this.loanDate = LocalDate.now();
+        this.returnDate = null;
         this.isReturned = false;
     }
 
