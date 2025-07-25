@@ -133,16 +133,12 @@ public class FineManagementPanel extends JPanel {
                                 // 1. Tandai buku kembali di DataStorage dan database
                                 loan.setReturnDate(LocalDate.now());
                                 loan.setReturned(true);
-                                loan.getBook().setBorrowed(false); // Pastikan buku tersedia lagi
-                                dataStorage.updateLoan(loan); // Update loan dan book status di database
+                                loan.getBook().setBorrowed(false); 
+                                dataStorage.updateLoan(loan); 
 
                                 // 2. Hapus denda dari database
-                                dataStorage.deleteFineFromDatabase(loanId); // Panggil metode DataStorage
-                                
-                                // 3. Hapus peminjaman dari database (jika memang ingin dihapus dari riwayat)
-                                // Jika tidak ingin menghapus peminjaman dari tabel loans setelah lunas,
-                                // jangan panggil baris di bawah ini.
-                                dataStorage.deleteLoan(loanId); // Hapus peminjaman dari tabel loans setelah lunas
+                                dataStorage.deleteFineFromDatabase(loanId); 
+                                dataStorage.deleteLoan(loanId); 
 
                                 SwingUtilities.invokeLater(() -> {
                                     // Hapus baris dari tabel model lokal
@@ -197,7 +193,7 @@ public class FineManagementPanel extends JPanel {
         LocalDate loanDate = loan.getLoanDate();
         LocalDate currentDate = LocalDate.now();
         // Pastikan daysLate tidak negatif
-        long daysLate = Math.max(0, ChronoUnit.DAYS.between(loanDate, currentDate) - 7); // Jika tanggal kembali 7 hari setelah pinjam
+        long daysLate = Math.max(0, ChronoUnit.DAYS.between(loanDate, currentDate) - 7); 
         daysLate += additionalDays; // Tambahan hari jika ada
 
         long fineAmount = 5000 + (daysLate * 5000); // 5000 + (hari terlambat * 5000)
@@ -226,27 +222,7 @@ public class FineManagementPanel extends JPanel {
         System.out.println("Memuat denda dari DataStorage: " + fines.size() + " denda ditemukan.");
     }
 
-    // Hapus metode ini karena sudah dipindahkan ke DataStorage atau tidak lagi diperlukan
-    /*
-    private void checkAndAddOverdueFines() {
-        System.out.println("Metode checkAndAddOverdueFines tidak digunakan lagi.");
-    }
-    */
-
-    // Hapus metode ini karena sudah dipindahkan ke DataStorage
-    /*
-    private void saveFineToDatabase(Fine fine) {
-        // Logika ini sekarang ada di DataStorage
-    }
-    */
-
-    // Hapus metode ini karena sudah dipindahkan ke DataStorage
-    /*
-    public void deleteFineFromDatabase(String loanId) {
-        // Logika ini sekarang ada di DataStorage
-    }
-    */
-
+  
     private void updateTable() {
         tableModel.setRowCount(0);
         loadFinesFromDatabase(); // Muat denda terbaru
