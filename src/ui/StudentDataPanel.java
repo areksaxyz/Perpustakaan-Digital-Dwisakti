@@ -20,8 +20,8 @@ public class StudentDataPanel extends JPanel {
     private LibraryUI libraryUI;
     private String currentUsername;
     private String currentUserRole;
-    private JTable table; // Untuk admin view
-    private DefaultTableModel tableModel; // Untuk admin view
+    private JTable table;
+    private DefaultTableModel tableModel;
 
     public StudentDataPanel(DataStorage dataStorage, LibraryUI libraryUI, String currentUsername) {
         this.dataStorage = dataStorage;
@@ -423,9 +423,9 @@ public class StudentDataPanel extends JPanel {
         protected JButton button;
         private String label;
         private boolean isPushed;
-        private DataStorage dataStorageRef; // Referensi DataStorage
-        private LibraryUI libraryUIRef;     // Referensi LibraryUI
-        private String currentUsernameRef;  // Referensi currentUsername
+        private DataStorage dataStorageRef; 
+        private LibraryUI libraryUIRef;     
+        private String currentUsernameRef;  
 
         public ButtonEditor(JCheckBox checkBox, String text, DataStorage dataStorage, LibraryUI libraryUI, String currentUsername) {
             super(checkBox);
@@ -437,7 +437,7 @@ public class StudentDataPanel extends JPanel {
             button.setOpaque(true);
             button.setFont(new Font("Roboto", Font.BOLD, 12));
             button.setForeground(Color.WHITE);
-            button.setBackground(new Color(244, 67, 54)); // Warna default untuk Hapus
+            button.setBackground(new Color(244, 67, 54)); 
             button.setFocusPainted(false);
             button.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
             button.setCursor(new Cursor(Cursor.HAND_CURSOR));
