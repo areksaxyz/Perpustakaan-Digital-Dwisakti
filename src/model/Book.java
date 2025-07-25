@@ -10,7 +10,7 @@
         private boolean isBorrowed; // Status peminjaman
         private String subject;
 
-        // Konstruktor asli yang Anda gunakan sebelumnya
+        
         public Book(String id, String title, String author, String publicationYear, String type, String url) {
             this.id = id;
             this.title = title;
@@ -22,7 +22,7 @@
             this.subject = ""; // Default kosong
         }
 
-        // Konstruktor baru yang Anda tambahkan sebelumnya untuk int year, dengan subject
+        
         public Book(String id, String title, String author, int publicationYear, String type, String url, String subject) {
             this.id = id;
             this.title = title;
