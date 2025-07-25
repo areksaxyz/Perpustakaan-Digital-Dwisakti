@@ -23,7 +23,7 @@ Antarmuka awal aplikasi untuk autentikasi pengguna (admin atau mahasiswa).
 ![Halaman Login](tampilan/halamanlogin.png)
 
 ### 2. Beranda
-Menampilkan ringkasan informasi perpustakaan seperti jumlah buku dan peminjaman terbaru.
+Menampilkan halaman beranda
 ![Beranda](tampilan/beranda.png)
 
 ### 3. Buku Digital
